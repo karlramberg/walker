@@ -1,6 +1,6 @@
 /*
 	Karl Ramberg
-	Walker v4.0
+	Walker v5.0
 	walker.go
 */
 
@@ -12,11 +12,29 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/html"
+	"github.com/gomarkdown/markdown/parser"
 )
 
-var iFlag = flag.String("i", "src", "Input folder of incomplete HTML pages")
+var iFlag = flag.String("i", "src", "Input folder of Markdown files")
 var oFlag = flag.String("o", "docs", "Output folder to place complete HTML pages. This folder is created if it doesn't exist. Existing *.html files, *.htm files, and empty subdirectories in here are deleted!")
-var tFlag = flag.String("t", "template.html", "Template HTML page to inject HTML into")
+var tFlag = flag.String("t", "template.html", "Template HTML page to inject converted Markdown into")
+
+func mdToHTML(md []byte) []byte {
+	// Create markdown parser with extensions
+	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock | parser.SuperSubscript
+	p := parser.NewWithExtensions(extensions)
+	doc := p.Parse(md)
+
+	// Create HTML renderer with extensions
+	htmlFlags := html.CommonFlags
+	opts := html.RendererOptions{Flags: htmlFlags}
+	renderer := html.NewRenderer(opts)
+
+	return markdown.Render(doc, renderer)
+}
 
 func main() {
 	flag.Parse()
@@ -81,10 +99,10 @@ func main() {
 			}
 		}
 
-		// If an HTML file is found, generate a completed one
-		// and write it to the same location in the output folder
+		// If a Markdown file is found, convert it and generate a completed one
+		// Write the new HTML file to the same location in the output folder
 		extension := filepath.Ext(path)
-		if extension == ".html" || extension == ".htm" {
+		if extension == ".md" {
 			// Read in contents of input file
 			input, err := os.ReadFile(path)
 			if err != nil {
@@ -92,15 +110,17 @@ func main() {
 				return nil
 			}
 
-			// Grab the title from the first line and the rest is the content
+			// Removes first line and uses it as document title
 			title, content, _ := strings.Cut(string(input), "\n")
 
+			content = string(mdToHTML([]byte(content)))
+
 			// Replace any [TITLE] with page title, and the first [CONTENT] with the content
-			output := strings.Replace(string(template), "[CONTENT]", string(content), 1)
+			output := strings.Replace(string(template), "[CONTENT]", content, 1)
 			output = strings.Replace(output, "[TITLE]", string(title), -1)
 
 			// Genearate the output file's path and write to disk
-			newFile := *oFlag + path[len(*iFlag):]
+			newFile := *oFlag + path[len(*iFlag):len(path)-len(".md")] + ".html"
 			fmt.Println("> Generating " + newFile + "...")
 			os.WriteFile(newFile, []byte(output), 0644)
 		}
