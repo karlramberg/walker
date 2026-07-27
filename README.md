@@ -1,5 +1,5 @@
 # Walker
-Walker is a small program to build complete HTML pages in an output folder using a template and an input folder of Mardown pages. 
+Walker is a small program to build complete HTML pages in an output folder using a template and an input folder of incomplete HTML pages
 
 The first line of an input file is used as a page title, replacing the `[TITLE]` token in the template. The rest of the file replaces the `[CONTENT]` token.
 
